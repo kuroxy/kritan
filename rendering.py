@@ -9,12 +9,11 @@ class camera:
         self.pos = [0,0]
         self.speed = 50
 
-        self.zoomspeed = .5
 
-        self.minres = [16,9]
+        self.defaultres = resolution.copy()
         self.zoom = 1
-        self.maxres = resolution.copy()
-    
+        self.maxzoom = 5
+        
         self.resolution = resolution
 
     def render(self, map, tilemap):
@@ -42,8 +41,13 @@ class camera:
                     dpos = [0, 0]
                     dpos[0] = x*8 + chunkpos[0]*8 - self.pos[0]*8
                     dpos[1] = y*8 + chunkpos[1]*8 - self.pos[1]*8
-                    surface.blit(tilemap[str(map[chunk][x][y])], dpos)
+                    surface.blit(tilemap[str(map[chunk][x][y].id)], dpos)
         return surface
+
+
+    def selected(self, mousepos):
+        pass
+
 
 
     def chunkpos(self):
@@ -85,21 +89,20 @@ class camera:
 
         
         if keys[pygame.K_x]:
-            self.zoom+=self.zoomspeed*dt
-
+            self.zoom+=1
         if keys[pygame.K_z]:
-            self.zoom-=self.zoomspeed*dt
+            self.zoom-=1
+        
+        if self.zoom < -self.maxzoom:
+            self.zoom = -self.maxzoom
 
-        if self.zoom < 0:
-            self.zoom = 0
-
-        if self.zoom > 2:
-            self.zoom = 2
+        if self.zoom > self.maxzoom:
+            self.zoom = self.maxzoom
         
 
         self.calculatereasolution()
  
 
     def calculatereasolution(self):
-        self.resolution[0] = int(self.maxres[0]*self.zoom + self.minres[0])
-        self.resolution[1] = int(self.maxres[1]*self.zoom + self.minres[1])
+        self.resolution[0] = self.defaultres[0]+16*self.zoom
+        self.resolution[1] = self.defaultres[1]+9*self.zoom

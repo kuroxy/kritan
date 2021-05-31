@@ -1,0 +1,9 @@
+block ids:
+
+
+-1  : unknown
+0   : air
+1   : stone
+2   : coal
+3   : iron
+4   : gold

@@ -20,17 +20,12 @@ for file in os.listdir("Sprites"):
 
 
 maincamera = camera(cameraresolution)
-mainworld = world(1)
+mainworld = world(3)
 clock = pygame.time.Clock()
 
 
 
 
-"""
-for x in range(30):
-    for y in range(20):
-        mainworld.generatechunk((x*10,y*10))
-"""
 #mainworld.generatechunk((0,0))
 while True:
     dt = clock.tick(maxfps) / 1000.0
@@ -55,7 +50,7 @@ while True:
             mainworld.generatechunk(pos)
 
     #maincamera.pos[0] += 1
-    screen.fill((0,0,0))
+    screen.fill((230,230,230))
     render = maincamera.render(mainworld.map,sprites)
 
 
