@@ -5,26 +5,38 @@ import pickle
 
 
 
-# import thread module 
+# import thread module
+ 
 from _thread import *
 import threading 
-  
+from worldgen import world
+
+
+
 print_lock = threading.Lock() 
 
 
 HEADERSIZE = 10
 
 
-def colormaphash(map):
-    hash = ""
-    for i in map:
-        for val in i:
-            hash += str(val)
-    return hash
+  
+class server():
+    def __init__(self,worldseed):
+        self.mainworld = world(worldseed)
+
+        self.host = ""
+        self.port = 25565
 
 
+    def send(self, c, addr, data):
+        message = f"{len(data):<{HEADERSIZE}}"
+        message = message.encode("utf-8") + data
 
-
+        
+        print(f"sending to {addr} : {data}")
+        c.send(message) 
+        
+    
 
 
 
