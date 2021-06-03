@@ -1,13 +1,35 @@
-import opensimplex
+
+class user:
+    def __init__(self,addr,c,id):
+        self.c = c
+        self.address = addr
+        self.username = ""
+        self.id = id
+
+        self.krits = {}
+        
+
+    def __repr__(self):
+        return str(self.id)
 
 
-simp = opensimplex.OpenSimplex(seed=1)
 
-SMOOTHNESS = 10
-DEPTH = .2
 
-map = [[ int(simp.noise2d(x=x*SMOOTHNESS, y=y*SMOOTHNESS) > DEPTH) for x in range(10)] for y in range(10)] 
 
-map = [[simp.noise2d(x=x*SMOOTHNESS, y=y*SMOOTHNESS) for x in range(10)] for y in range(10)] 
-for i in map:
-    print(i)
+liost = []
+
+liost.append(user(5,5,5))
+
+liost.append(user(5,5,4))
+
+liost.append(user(5,5,7))
+
+def get(list, id):
+    listofids = [e.id ==id for e in liost]
+    if any(listofids):
+        print(listofids.index(True))
+    else:
+        print("-1")
+    
+
+get(liost, 67)

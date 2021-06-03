@@ -56,7 +56,7 @@ class camera:
                     dpos = [0, 0]
                     dpos[0] = x*8 + chunkpos[0]*8 - self.pos[0]*8
                     dpos[1] = y*8 + chunkpos[1]*8 - self.pos[1]*8
-                    surface.blit(tilemap[str(map[chunk][x][y].id)], dpos)
+                    surface.blit(tilemap[str(map[chunk][x][y].type)], dpos)
 
         tempx=self.selectedpos[0]*8  - self.pos[0]*8
         tempy=self.selectedpos[1]*8  - self.pos[1]*8

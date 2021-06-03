@@ -2,13 +2,7 @@ import random
 import math 
 from opensimplex import OpenSimplex
 
-
-class block:
-    def __init__(self,id):
-        self.id = id
-
-        self.isContainer = False
-        self.data = {}
+from blockclass import block
 
 class world:
     SMOOTHNESS = .07
@@ -49,6 +43,7 @@ class world:
         chunkpos= str(chunkpos[0])+"."+str(chunkpos[1])
         self.map[chunkpos] = chunk
 
+
     def generateterrain(self, pos):
         layer1=(self.simplexnoise.noise2d(x=pos[0]*world.SMOOTHNESS, y=pos[1]*world.SMOOTHNESS)+1)/2
         layer2=(self.simplexnoise.noise2d(x=pos[0]*world.SMOOTHNESS*2, y=pos[1]*world.SMOOTHNESS*2)+1)/2
@@ -81,3 +76,36 @@ class world:
             ore = "coal"
 
         return ore
+
+
+    def getblock(self, pos):
+        chunkx = math.floor(pos[0]/10)*10
+        chunky = math.floor(pos[1]/10)*10
+        chunkpos= f"{chunkx}.{chunky}"
+
+        if not chunkpos in self.map:
+            self.generatechunk(chunkpos)
+
+        return self.map[chunkpos][pos[0]%10][pos[1]%10]
+
+
+    def getchunk(self,pos):
+        chunkx = math.floor(pos[0]/10)*10
+        chunky = math.floor(pos[1]/10)*10
+        chunkpos= f"{chunkx}.{chunky}"
+
+        if not chunkpos in self.map:
+            self.generatechunk(chunkpos)
+
+        return self.map[chunkpos]
+
+
+    def setblock(self, pos, blockclass):
+        chunkx = math.floor(pos[0]/10)*10
+        chunky = math.floor(pos[1]/10)*10
+        chunkpos= f"{chunkx}.{chunky}"
+
+        if not chunkpos in self.map:
+            self.generatechunk(chunkpos)
+        
+        self.map[chunkpos][pos[0]%10][pos[1]%10] = blockclass
