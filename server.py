@@ -7,14 +7,14 @@ from _thread import *
 import threading 
 
 from libs.vectors import Vector2D
-from libs.worldgen2 import worldgenerator
+from libs.worldgen import worldgenerator
 from libs.blocktype import block
 
 from libs.playerclasses import station
 from libs.playerclasses import krit
-# server class
 
 
+# gamelogic class
 class gamelogic:
     def __init__(self,seed):
         self.seed = seed
