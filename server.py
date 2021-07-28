@@ -103,7 +103,7 @@ class gamelogic:
         self.setblock((x,y),stat.getblock())    # placing station
         self.stations[playerid] = stat
 
-        self.krits[playerid] = []
+        self.krits[playerid] = {}
 
         return True
 
@@ -130,3 +130,63 @@ class gamelogic:
 
         self.krits[playerid].append(newkrit)
         return True
+
+    
+    def krit_move(self,playerid, kritid):
+        """move a krit only if it is posible to move
+
+        Args:
+            playerid (Int): id of the player
+            kritid (Int): id of the krit of the player
+
+        Returns:
+            [bool]: returns True if successful return false if unable to move
+        """
+        lkrit = self.krits[playerid][kritid]
+
+        newpos = lkrit.position + lkrit.direction
+
+        blocktype = self.getblock(newpos).type
+
+        if blocktype != "air":  
+            return False
+        
+        lkrit.position = newpos
+        return True
+    
+
+    def krit_rotate_left(self,playerid, kritid):
+        """rotates a krit left
+
+        Args:
+            playerid (Int): id of the player
+            kritid (Int): id of the krit of the player
+
+        Returns:
+            [bool]: returns True if successful
+        """
+        lkrit = self.krits[playerid][kritid]
+
+        newdir = Vector2D(-lkrit.direction.y,lkrit.direction.x)
+
+        lkrit.direction = newdir
+        return True
+
+
+    def krit_rotate_right(self,playerid, kritid):
+        """rotates a krit right
+
+        Args:
+            playerid (Int): id of the player
+            kritid (Int): id of the krit of the player
+
+        Returns:
+            [bool]: returns True if successful
+        """
+        lkrit = self.krits[playerid][kritid]
+
+        newdir = Vector2D(lkrit.direction.y,-lkrit.direction.x)
+
+        lkrit.direction = newdir
+        return True
+
