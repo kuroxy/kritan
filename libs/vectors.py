@@ -20,7 +20,9 @@ class Vector2D:
 
     def __add__(self, other):
         """Vector addition."""
-        return Vector2D(self.x + other.x, self.y + other.y)
+        if isinstance(other, Vector2D):
+            return Vector2D(self.x + other.x, self.y + other.y)
+        return Vector2D(self.x + other, self.y + other)
 
     def __mul__(self, scalar):
         """Multiplication of a vector by a scalar."""
@@ -57,6 +59,6 @@ class Vector2D:
         """Return the vector's components in polar coordinates."""
         return self.__abs__(), math.atan2(self.y, self.x)
 
-test1 = Vector2D(20,10)
-
-print(repr(test1%10) =="(0, 0)")
+    def to_int(self):
+        """Returns the rounded vector """
+        return Vector2D(int(self.x),int(self.y))

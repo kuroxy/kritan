@@ -8,15 +8,20 @@ class station(object):
 
     def getblock(self):
         # returns station as blockobject
-        return block("station",)
+        return block("station")
 
 
 
 class krit(object):
-    def __init__(self,position):
+    def __init__(self,playerid, kritid, position):
+        self.playerid = playerid
+        self.kritid = kritid
+
         self.position = position    # Vec2D absolute position
-        self.direction = Vector2D(0,-1) # POINTING NORTH
+        self.direction = Vector2D(1,0) # POINTING WEST
 
         self.inventory = [None for _ in range(16)] # krits inventory needs working #TODO
 
-    
+    def getblock(self):
+        # returns station as blockobject
+        return block("krit",dir = self.direction, kritid=self.kritid,playerid=self.playerid)
