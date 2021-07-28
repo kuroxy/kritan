@@ -8,10 +8,9 @@ import threading
 
 from libs.vectors import Vector2D
 from libs.worldgen import worldgenerator
-from libs.blocktype import block
+from libs.blocktype import blockdata
 
-from libs.playerclasses import station
-from libs.playerclasses import krit
+from libs.playerclasses import station, krit
 
 
 # gamelogic class
@@ -44,7 +43,7 @@ class gamelogic:
         strchunkpos = f"{chunkpos.x}.{chunkpos.y}"
 
         if not strchunkpos in self.world:
-            self.world[strchunkpos] = self.generate_chunk(chunkpos)
+            self.world[strchunkpos] = self.worldgen.generate_chunk(chunkpos)
         
 
         bl = self.world[strchunkpos][blockoffset.y][blockoffset.x]
@@ -73,7 +72,7 @@ class gamelogic:
 
         self.world[strchunkpos][blockoffset.y][blockoffset.x] = blockobj
         return True
-    
+
 
     def create_station(self,playerid,pos):
         """creating a player station adding player to krits dictionarty
@@ -85,8 +84,8 @@ class gamelogic:
         Returns:
             [bool]: if placed return True else return False
         """
-        for x in range(pos.x-2,pos.x+2):    # checking if this position is valid
-            for y in range(pos.y-2,pos.y+2):
+        for x in range(pos.x-2,pos.x+2+1):    # checking if this position is valid
+            for y in range(pos.y-2,pos.y+2+1):
 
                 block = self.getblock(Vector2D(x,y))
                 if block.type in ["station","krit"]:
@@ -95,19 +94,19 @@ class gamelogic:
         stat = station(playerid,pos)
         
 
-        for x in range(pos.x-1,pos.x+1):    # making a 5x5 space around station
-            for y in range(pos.y-1,pos.y+1):
-                self.setblock((x,y),block("air"))
+        for x in range(pos.x-2,pos.x+2+1):    # making a 5x5 space around station
+            for y in range(pos.y-2,pos.y+2+1):
+                self.setblock(Vector2D(x,y),blockdata("air"))
 
 
-        self.setblock((x,y),stat.getblock())    # placing station
+        self.setblock(pos,stat.getblock())    # placing station
         self.stations[playerid] = stat
 
         self.krits[playerid] = {}
 
         return True
 
-    
+
     def create_krit(self,playerid):
         """creating a krit and adding it to the list
 
@@ -128,10 +127,10 @@ class gamelogic:
 
         newkrit = krit(playerid,newkritid,newkritpos)
 
-        self.krits[playerid].append(newkrit)
+        self.krits[playerid][newkritid] = newkrit
         return True
 
-    
+
     def krit_move(self,playerid, kritid):
         """move a krit only if it is posible to move
 
@@ -153,7 +152,7 @@ class gamelogic:
         
         lkrit.position = newpos
         return True
-    
+
 
     def krit_rotate_left(self,playerid, kritid):
         """rotates a krit left

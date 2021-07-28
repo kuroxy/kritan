@@ -1,4 +1,4 @@
-class block:
+class blockdata:
     def __init__(self,type="unknown", **metadata):
         self.type = type
 

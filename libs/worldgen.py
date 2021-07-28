@@ -2,8 +2,8 @@ import random
 import math 
 from opensimplex import OpenSimplex
 
-from vectors import Vector2D
-from blocktype import block
+from libs.vectors import Vector2D
+from libs.blocktype import blockdata
 
 
 class worldgenerator(object): 
@@ -42,11 +42,12 @@ class worldgenerator(object):
         Returns:
             [block]: newly generated block object
         """
+        
         # generate terrain
-        layer1=(self.simplexnoise.noise2d(x=pos[0]*worldgenerator.SMOOTHNESS, y=pos[1]*worldgenerator.SMOOTHNESS)+1)/2
-        layer2=(self.simplexnoise.noise2d(x=pos[0]*worldgenerator.SMOOTHNESS*2, y=pos[1]*worldgenerator.SMOOTHNESS*2)+1)/2
-        layer3=(self.simplexnoise.noise2d(x=pos[0]*worldgenerator.SMOOTHNESS*4, y=pos[1]*worldgenerator.SMOOTHNESS*4)+1)/2
-        layer4=(self.simplexnoise.noise2d(x=pos[0]*worldgenerator.SMOOTHNESS*8, y=pos[1]*worldgenerator.SMOOTHNESS*8)+1)/2
+        layer1=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS, y=pos.y*worldgenerator.SMOOTHNESS)+1)/2
+        layer2=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS*2, y=pos.y*worldgenerator.SMOOTHNESS*2)+1)/2
+        layer3=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS*4, y=pos.y*worldgenerator.SMOOTHNESS*4)+1)/2
+        layer4=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS*8, y=pos.y*worldgenerator.SMOOTHNESS*8)+1)/2
 
         mixed = (layer1/1 + layer2/2 + layer3/4+layer4/8)/1.875
 
@@ -57,16 +58,16 @@ class worldgenerator(object):
             blocktype = "stone"
 
             
-            if (self.goldnoise.noise2d(x=pos[0]*worldgenerator.goldcluster, y=pos[1]*worldgenerator.goldcluster)+1)/2 < worldgenerator.goldamount:  
+            if (self.goldnoise.noise2d(x=pos.x*worldgenerator.goldcluster, y=pos.y*worldgenerator.goldcluster)+1)/2 < worldgenerator.goldamount:  
                 blocktype = "gold"
         
-            if (self.ironnoise.noise2d(x=pos[0]*worldgenerator.ironcluster, y=pos[1]*worldgenerator.ironcluster)+1)/2 < worldgenerator.ironamount:     
+            if (self.ironnoise.noise2d(x=pos.x*worldgenerator.ironcluster, y=pos.y*worldgenerator.ironcluster)+1)/2 < worldgenerator.ironamount:     
                 blocktype = "iron"
             
-            if (self.coalnoise.noise2d(x=pos[0]*worldgenerator.coalcluster, y=pos[1]*worldgenerator.coalcluster)+1)/2 < worldgenerator.coalamount:   
+            if (self.coalnoise.noise2d(x=pos.x*worldgenerator.coalcluster, y=pos.y*worldgenerator.coalcluster)+1)/2 < worldgenerator.coalamount:   
                 blocktype = "coal"
         
-        return block(blocktype) 
+        return blockdata(blocktype) 
 
 
     def generate_chunk(self,chunkpos):
@@ -82,6 +83,6 @@ class worldgenerator(object):
 
         for x in range(10):
             for y in range(10):
-                chunk[x][y] = self.generateterrain((x+chunkpos[0]*10,y+chunkpos[1]*10))
+                chunk[x][y] = self.generate_block(Vector2D(x+chunkpos.x*10,y+chunkpos.y*10))
 
         return chunk

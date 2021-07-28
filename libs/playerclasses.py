@@ -1,5 +1,5 @@
-from vectors import Vector2D
-from blocktype import block
+from libs.vectors import Vector2D
+from libs.blocktype import blockdata
 
 class station(object):   
     def __init__(self,playerid,position):
@@ -8,7 +8,7 @@ class station(object):
 
     def getblock(self):
         # returns station as blockobject
-        return block("station")
+        return blockdata("station")
 
 
 
@@ -24,4 +24,4 @@ class krit(object):
 
     def getblock(self):
         # returns station as blockobject
-        return block("krit",dir = self.direction, kritid=self.kritid,playerid=self.playerid)
+        return blockdata("krit",dir = self.direction, kritid=self.kritid,playerid=self.playerid)
