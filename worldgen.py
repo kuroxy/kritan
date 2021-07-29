@@ -44,27 +44,27 @@ class Worldgenerator(object):
         """
         
         # generate terrain
-        layer1=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS, y=pos.y*worldgenerator.SMOOTHNESS)+1)/2
-        layer2=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS*2, y=pos.y*worldgenerator.SMOOTHNESS*2)+1)/2
-        layer3=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS*4, y=pos.y*worldgenerator.SMOOTHNESS*4)+1)/2
-        layer4=(self.terrainnoise.noise2d(x=pos.x*worldgenerator.SMOOTHNESS*8, y=pos.y*worldgenerator.SMOOTHNESS*8)+1)/2
+        layer1=(self.terrainnoise.noise2d(x=pos.x*Worldgenerator.SMOOTHNESS, y=pos.y*Worldgenerator.SMOOTHNESS)+1)/2
+        layer2=(self.terrainnoise.noise2d(x=pos.x*Worldgenerator.SMOOTHNESS*2, y=pos.y*Worldgenerator.SMOOTHNESS*2)+1)/2
+        layer3=(self.terrainnoise.noise2d(x=pos.x*Worldgenerator.SMOOTHNESS*4, y=pos.y*Worldgenerator.SMOOTHNESS*4)+1)/2
+        layer4=(self.terrainnoise.noise2d(x=pos.x*Worldgenerator.SMOOTHNESS*8, y=pos.y*Worldgenerator.SMOOTHNESS*8)+1)/2
 
         mixed = (layer1/1 + layer2/2 + layer3/4+layer4/8)/1.875
 
 
-        if mixed < worldgenerator.DEPTH:
+        if mixed < Worldgenerator.DEPTH:
             blocktype = "air"
         else:  # ore generation because block is a solid
             blocktype = "stone"
 
             
-            if (self.goldnoise.noise2d(x=pos.x*worldgenerator.goldcluster, y=pos.y*worldgenerator.goldcluster)+1)/2 < worldgenerator.goldamount:  
+            if (self.goldnoise.noise2d(x=pos.x*Worldgenerator.goldcluster, y=pos.y*Worldgenerator.goldcluster)+1)/2 < Worldgenerator.goldamount:  
                 blocktype = "gold"
         
-            if (self.ironnoise.noise2d(x=pos.x*worldgenerator.ironcluster, y=pos.y*worldgenerator.ironcluster)+1)/2 < worldgenerator.ironamount:     
+            if (self.ironnoise.noise2d(x=pos.x*Worldgenerator.ironcluster, y=pos.y*Worldgenerator.ironcluster)+1)/2 < Worldgenerator.ironamount:     
                 blocktype = "iron"
             
-            if (self.coalnoise.noise2d(x=pos.x*worldgenerator.coalcluster, y=pos.y*worldgenerator.coalcluster)+1)/2 < worldgenerator.coalamount:   
+            if (self.coalnoise.noise2d(x=pos.x*Worldgenerator.coalcluster, y=pos.y*Worldgenerator.coalcluster)+1)/2 < Worldgenerator.coalamount:   
                 blocktype = "coal"
         
         return Blockdata(blocktype) 
