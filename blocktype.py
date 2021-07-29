@@ -1,4 +1,4 @@
-class blockdata:
+class Blockdata:
     def __init__(self,type="unknown", **metadata):
         self.type = type
 
@@ -9,7 +9,7 @@ class blockdata:
             self.data[key] = metadata[key]
 
     def copy(self):
-        newblock = blockdata(self.type)
+        newblock = Blockdata(self.type)
         for key in self.data:
             newblock.data[key] = self.data[key]
         return newblock

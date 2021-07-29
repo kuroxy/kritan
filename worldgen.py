@@ -3,10 +3,10 @@ import math
 from opensimplex import OpenSimplex
 
 from vectors import Vector2D
-from blocktype import blockdata
+from blocktype import Blockdata
 
 
-class worldgenerator(object): 
+class Worldgenerator(object): 
     #terrain settings
     SMOOTHNESS = .07
     DEPTH = .475
@@ -67,7 +67,7 @@ class worldgenerator(object):
             if (self.coalnoise.noise2d(x=pos.x*worldgenerator.coalcluster, y=pos.y*worldgenerator.coalcluster)+1)/2 < worldgenerator.coalamount:   
                 blocktype = "coal"
         
-        return blockdata(blocktype) 
+        return Blockdata(blocktype) 
 
 
     def generate_chunk(self,chunkpos):

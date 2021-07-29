@@ -7,10 +7,10 @@ from _thread import *
 import threading 
 
 from vectors import Vector2D
-from worldgen import worldgenerator
-from blocktype import blockdata
+from worldgen import Worldgenerator
+from blocktype import Blockdata
 
-from playerclasses import station, krit
+from playerclasses import Station, Krit
 
 
 # gamelogic class
@@ -19,7 +19,7 @@ class gamelogic:
 
     def __init__(self,seed):
         self.seed = seed
-        self.worldgen = worldgenerator(seed)
+        self.worldgen = Worldgenerator(seed)
 
         self.world = {}
 
@@ -93,12 +93,12 @@ class gamelogic:
                 if block.type in ["station","krit"]:
                     return False
 
-        stat = station(playerid,pos)
+        stat = Station(playerid,pos)
         
 
         for x in range(pos.x-2,pos.x+2+1):    # making a 5x5 space around station
             for y in range(pos.y-2,pos.y+2+1):
-                self.setblock(Vector2D(x,y),blockdata("air"))
+                self.setblock(Vector2D(x,y),Blockdata("air"))
 
 
         self.setblock(pos,stat.getblock())    # placing station
@@ -127,7 +127,7 @@ class gamelogic:
         newkritid = len(self.krits[playerid])
 
 
-        newkrit = krit(playerid,newkritid,newkritpos)
+        newkrit = Krit(playerid,newkritid,newkritpos)
 
         self.krits[playerid][newkritid] = newkrit
         return True
@@ -223,20 +223,20 @@ class gamelogic:
                 pileamount-=1
 
             if pileamount > 0:
-                pileblock = blockdata("pile", block=pileblockdata,amount=pileamount)
+                pileblock = Blockdata("pile", block=pileblockdata,amount=pileamount)
                 self.setblock(minepos, pileblock)
                 return True
                 
-            self.setblock(minepos, blockdata("air"))
+            self.setblock(minepos, Blockdata("air"))
             return True
 
         
         if lkrit.add_to_inventory(blocktype):  
-            self.setblock(minepos, blockdata("air"))
+            self.setblock(minepos, Blockdata("air"))
             return True
         
         else:   # inventory is full so drop it on the ground
-            pileblock = blockdata("pile", block=blocktype,amount=1)
+            pileblock = Blockdata("pile", block=blocktype,amount=1)
             self.setblock(minepos, pileblock)
 
             return True
@@ -280,14 +280,14 @@ class gamelogic:
         standingblock = self.getblock(lkrit.position)
         if standingblock.type == "pile" and standingblock.data["block"].type==blocktype.type and standingblock.data["amount"] < 25: 
             lkrit.remove_to_inventory(blocktype)
-            pileblock = blockdata("pile", block=blockdata(standingblock.data["block"]),amount=standingblock.data["amount"]+1)
+            pileblock = Blockdata("pile", block=Blockdata(standingblock.data["block"]),amount=standingblock.data["amount"]+1)
             self.setblock(lkrit.position, pileblock)
             return True
             
 
         elif standingblock.type == "air":
             lkrit.remove_to_inventory(blocktype)
-            pileblock = blockdata("pile", block=blocktype,amount=1)
+            pileblock = Blockdata("pile", block=blocktype,amount=1)
             self.setblock(lkrit.position, pileblock)
             return True
 

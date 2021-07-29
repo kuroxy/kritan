@@ -1,7 +1,7 @@
 from vectors import Vector2D
 from blocktype import blockdata
 
-class station(object):   
+class Station(object):   
     def __init__(self,playerid,position):
         self.playerid = playerid
         self.position = position    # Vec2D absolute position
@@ -12,7 +12,7 @@ class station(object):
 
 
 
-class krit(object):
+class Krit(object):
     def __init__(self,playerid, kritid, position):
         self.playerid = playerid
         self.kritid = kritid
