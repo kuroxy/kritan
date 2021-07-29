@@ -20,7 +20,7 @@ class krit(object):
         self.position = position    # Vec2D absolute position
         self.direction = Vector2D(1,0) # POINTING WEST
 
-        self.inventory = [[None,0] for _ in range(16)] 
+        self.inventory = [[None,0] for _ in range(12)] 
 
     def getblock(self):
         # returns station as blockobject
@@ -61,7 +61,7 @@ class krit(object):
         """
         
         for i in range(len(self.inventory)):
-            i = 15-i
+            i = len(self.inventory)-i
             if self.inventory[i][0] == block.type and self.inventory[i][1] > 0:   # if slot it correct type and slot is not full
                 self.inventory[i][1]-=1
                 if self.inventory[i][1] == 0:
@@ -71,4 +71,18 @@ class krit(object):
 
         return False   
 
+
+    def has_block(self,block):
+        """checks if krit has block
+
+        Args:
+            block (blockdata): block to check
+
+        Returns:
+            [bool]: returns True if krit has block / returns False if krit doesnt have the block
+        """
+        for i in range(len(self.inventory)):
+            if self.inventory[i][0] == block.type and self.inventory[i][1] > 0:
+                return True
+        return False
 

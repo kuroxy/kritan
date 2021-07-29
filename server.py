@@ -15,6 +15,8 @@ from playerclasses import station, krit
 
 # gamelogic class
 class gamelogic:
+    nonminableblocks = ["air", "station"]
+
     def __init__(self,seed):
         self.seed = seed
         self.worldgen = worldgenerator(seed)
@@ -188,4 +190,107 @@ class gamelogic:
 
         lkrit.direction = newdir
         return True
+
+
+    def krit_mine(self,playerid,kritid):
+        """mines the block infront of the krit.
+
+        Args:
+            playerid (int): player id
+            kritid (int): krit id
+
+        Returns:
+            [bool]: returns True if mined false if not able
+        """
+        lkrit = self.krits[playerid][kritid]
+
+        minepos = lkrit.position + lkrit.direction
+
+        blocktype = self.getblock(minepos)
+
+
+        if blocktype.type in gamelogic.nonminableblocks:   # if indestructable return false
+            return False
+
+        elif blocktype.type == "pile":  # pile pickup
+            pileamount = blocktype.data["amount"]
+            pileblockdata = blocktype.data["block"]
+
+            for _ in range(pileamount):
+                if not lkrit.add_to_inventory(pileblockdata):
+                    #inventory full
+                    break
+                pileamount-=1
+
+            if pileamount > 0:
+                pileblock = blockdata("pile", block=pileblockdata,amount=pileamount)
+                self.setblock(minepos, pileblock)
+                return True
+                
+            self.setblock(minepos, blockdata("air"))
+            return True
+
+        
+        if lkrit.add_to_inventory(blocktype):  
+            self.setblock(minepos, blockdata("air"))
+            return True
+        
+        else:   # inventory is full so drop it on the ground
+            pileblock = blockdata("pile", block=blocktype,amount=1)
+            self.setblock(minepos, pileblock)
+
+            return True
+
+
+    def krit_place_block(self,playerid,kritid,block):
+        """places a block infront of the krit
+
+        Args:
+            playerid (int)
+            kritid (int)
+            block (blockdata): block that the krit wants to place
+
+        Returns:
+            [bool]: returns True if successful, returns False if placepos is not air or inventory does not contain that block
+        """
+        lkrit = self.krits[playerid][kritid]
+
+        placepos = lkrit.position + lkrit.direction
+
+        if self.getblock(placepos).type != "air": 
+            return False
+
+
+        if not lkrit.remove_to_inventory(block):
+            return False    # doesnt have that block in his inventory
+
+
+        self.setblock(placepos,block)
+
+        return True
+
+
+    def krit_drop(self,playerid,kritid,blocktype):
+        lkrit = self.krits[playerid][kritid]
+
+        if not lkrit.has_block(blocktype):
+            return False
+
+
+        standingblock = self.getblock(lkrit.position)
+        if standingblock.type == "pile" and standingblock.data["block"].type==blocktype.type and standingblock.data["amount"] < 25: 
+            lkrit.remove_to_inventory(blocktype)
+            pileblock = blockdata("pile", block=blockdata(standingblock.data["block"]),amount=standingblock.data["amount"]+1)
+            self.setblock(lkrit.position, pileblock)
+            return True
+            
+
+        elif standingblock.type == "air":
+            lkrit.remove_to_inventory(blocktype)
+            pileblock = blockdata("pile", block=blocktype,amount=1)
+            self.setblock(lkrit.position, pileblock)
+            return True
+
+
+        return False
 
