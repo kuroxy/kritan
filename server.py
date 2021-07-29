@@ -6,11 +6,11 @@ import pickle
 from _thread import *
 import threading 
 
-from libs.vectors import Vector2D
-from libs.worldgen import worldgenerator
-from libs.blocktype import blockdata
+from vectors import Vector2D
+from worldgen import worldgenerator
+from blocktype import blockdata
 
-from libs.playerclasses import station, krit
+from playerclasses import station, krit
 
 
 # gamelogic class

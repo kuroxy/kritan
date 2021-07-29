@@ -2,8 +2,8 @@ import random
 import math 
 from opensimplex import OpenSimplex
 
-from libs.vectors import Vector2D
-from libs.blocktype import blockdata
+from vectors import Vector2D
+from blocktype import blockdata
 
 
 class worldgenerator(object): 
