@@ -1,5 +1,5 @@
 from vectors import Vector2D
-from blocktype import blockdata
+from blocktype import Blockdata
 
 class Station(object):   
     def __init__(self,playerid,position):

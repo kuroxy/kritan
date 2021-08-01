@@ -6,6 +6,10 @@ import pickle
 from _thread import *
 import threading 
 
+from math import inf,hypot
+import random
+import time
+
 from vectors import Vector2D
 from worldgen import Worldgenerator
 from blocktype import Blockdata
@@ -13,13 +17,28 @@ from blocktype import Blockdata
 from playerclasses import Station, Krit
 
 
+def maxinlist(li):
+    nmax = -inf
+    for n in li:
+        nmax = max(nmax,n)
+    return nmax
+
+def mininlist(li):
+    nmin = inf
+    for n in li:
+        nmin = min(nmin,n)
+    return nmin
+
 # gamelogic class
-class gamelogic:
+class Gamelogic:
     nonminableblocks = ["air", "station"]
+    seerange = 10
 
     def __init__(self,seed):
         self.seed = seed
         self.worldgen = Worldgenerator(seed)
+        random.seed(seed)
+
 
         self.world = {}
 
@@ -76,7 +95,7 @@ class gamelogic:
         return True
 
 
-    def create_station(self,playerid,pos):
+    def create_station(self,playerid,pos=None):
         """creating a player station adding player to krits dictionarty
 
         Args:
@@ -86,6 +105,32 @@ class gamelogic:
         Returns:
             [bool]: if placed return True else return False
         """
+        if pos == None:
+            stationpos = [self.stations[i].position for i in self.stations]
+            stationxpos = [i.x for i in stationpos]
+            stationypos = [i.y for i in stationpos]
+            xrange =  (mininlist(stationxpos),maxinlist(stationxpos))
+            yrange =  (mininlist(stationypos),maxinlist(stationypos))
+
+            a=True
+            b=False
+            while a:
+                b=True
+                xpos = random.range(*xrange)
+                ypos = random.range(*yrange)
+
+                for i in range(stationpos):
+                    if hypot(Vector2D(xpos,ypos)-stationpos) < 100:
+                        b=False
+                        break
+                    
+                if b:
+                    pos = Vector2D(xpos,ypos)
+                    break
+
+
+
+
         for x in range(pos.x-2,pos.x+2+1):    # checking if this position is valid
             for y in range(pos.y-2,pos.y+2+1):
 
@@ -132,6 +177,30 @@ class gamelogic:
         self.krits[playerid][newkritid] = newkrit
         return True
 
+
+    def krit_see(self,playerid, kritid):
+        """see blocks in front of the krit
+
+        Args:
+            playerid (int)
+            kritid (int)
+
+        Returns:
+            [list [Vector2D, Blockdata]]: returns an array of blocks till there is a block or a range of 10
+        """
+        lkrit = self.krits[playerid][kritid]
+        blockarray = []
+
+        for i in range(Gamelogic.seerange):
+            pos = lkrit.position + lkrit.direction*i
+            block = Blockdata(pos)
+            blockarray.append([pos,block])
+
+            if block.type != "air":
+                break
+        
+        return blockarray
+        
 
     def krit_move(self,playerid, kritid):
         """move a krit only if it is posible to move
@@ -293,4 +362,174 @@ class gamelogic:
 
 
         return False
+
+
+
+
+# netwoking
+
+class clientdata:
+    def __init__(self,c,addr,id,username=""):
+        self.c = c
+        self.address = addr
+        self.clientid = id
+        self.username = username
+        
+        self.instruction = []
+
+
+class Server():
+    def __init__(self,port,worldseed):
+        self.gamelogic = Gamelogic(worldseed)
+
+        self.host = ""
+        self.port = port
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+
+        self.print_lock = threading.Lock() 
+
+        self.conections = []
+        self.newid = 1
+
+
+    def send(self, client, data):
+        
+        message = data.encode("utf-8")
+
+        print(f"sending to {client.username}#{client.clientid} : {data}")
+        client.c.send(message) 
+
+
+    def mainloop(self):
+        # string the listening loop
+        start_new_thread(self.listenloop,) 
+
+
+        while True:
+            timestart = time.time()
+
+            for cli in self.conections:
+                if cli.instruction:
+                    # [<int>instructonid,<str>instructiontype, args]
+                    command = cli.instruction                    
+                     
+                    cli.instruction = []
+
+                    instructonid = command[0]
+                    command = command[1:]
+                    
+
+                    returndata = self.processinstruction(cli,command)
+                    
+                    cli.c.send(pickle.dumps([instructonid,returndata]))
+
+            timedelay = 1 + timestart - time.time() 
+            if timedelay > 0:
+                time.sleep(timedelay)
+           
+
+    def listenloop(self):
+        
+        self.s.bind((self.host, self.port)) 
+        print("socket binded to port", self.port) 
+    
+        # put the socket into listening mode 
+        self.s.listen()
+        print("socket is listening") 
+
+
+        
+        # a forever loop until client wants to exit 
+        while True: 
+    
+            # establish connection with client 
+            # adding player to server, creating a station and krit
+            c, addr = self.s.accept() 
+            newclient = clientdata(addr, c, self.newid)
+            self.conections.append(newclient)
+
+            self.gamelogic.create_station(newclient.clientid)
+            self.gamelogic.create_krit(newclient.clientid)
+
+            self.newid+=1
+
+            
+            print(f"{newclient.addr} loged in as {newclient.clientid}") 
+    
+            
+            # Start a new thread and return its identifier 
+            start_new_thread(self.receiving, (newclient,)) 
+    
+
+    def receiving(self,client):
+        while True:
+            # [<int>messageid,<str>instructiontype, args]
+
+            message = self.s.recv(4096)
+            
+
+            try:
+                message = pickle.loads(message)
+                print(f" {client.username}${client.id} : {message[0]} received")
+                client.instruction = message
+           
+
+            except Exception as e:
+                print(e)
+
+
+            
+            
+
+
+    
+
+    def processinstruction(self,clientdata,command):
+        # commands
+
+        # krit_move_forward {kritid}               [bool]
+        # krit_rotate_left  {kritid}               [bool]
+        # krit_rotate_right {kritid}               [bool]
+        # krit_see          {kritid}               [blockarray]
+
+        # krit_mine         {kritid}               [Blockdata]
+        # krit_place        {kritid} {Blockdata}   [bool]
+        # krit_drop         {kritid} {Blockdata} {amount}       #TODO        
+
+
+        commandtype = command[0]
+
+        if commandtype == "krit_move_forward":
+            kritid =  command[1]
+            returndata = self.gamelogic.krit_move(clientdata.clientid,kritid)
+            return returndata
+
+        elif commandtype == "krit_rotate_left":
+            kritid =  command[1]
+            returndata = self.gamelogic.krit_rotate_left(clientdata.clientid,kritid)
+            return returndata
+
+        elif commandtype == "krit_rotate_right":
+            kritid =  command[1]
+            returndata = self.gamelogic.krit_rotate_right(clientdata.clientid,kritid)
+            return returndata
+        
+        elif commandtype == "krit_see":
+            kritid =  command[1]
+            returndata = self.gamelogic.krit_see(clientdata.clientid,kritid)
+            return returndata
+
+        elif commandtype == "krit_mine":
+            kritid =  command[1]
+            returndata = self.gamelogic.krit_mine(clientdata.clientid,kritid)
+            return returndata
+
+        elif commandtype == "krit_place":
+            kritid =  command[1]
+            blockdata = command[2]
+            returndata = self.gamelogic.krit_(clientdata.clientid,kritid,blockdata)
+            return returndata
+
+        return "ERROR"
+
 
