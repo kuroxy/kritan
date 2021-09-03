@@ -8,7 +8,7 @@ class Station(object):
 
     def getblock(self):
         # returns station as blockobject
-        return blockdata("station")
+        return Blockdata("station")
 
 
 
@@ -24,7 +24,7 @@ class Krit(object):
 
     def getblock(self):
         # returns station as blockobject
-        return blockdata("krit",dir = self.direction, kritid=self.kritid,playerid=self.playerid)
+        return Blockdata("krit",dir = self.direction, kritid=self.kritid,playerid=self.playerid)
 
 
     def add_to_inventory(self,block):
@@ -76,7 +76,7 @@ class Krit(object):
         """checks if krit has block
 
         Args:
-            block (blockdata): block to check
+            block (Blockdata): block to check
 
         Returns:
             [bool]: returns True if krit has block / returns False if krit doesnt have the block

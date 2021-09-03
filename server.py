@@ -106,29 +106,33 @@ class Gamelogic:
             [bool]: if placed return True else return False
         """
         if pos == None:
-            stationpos = [self.stations[i].position for i in self.stations]
-            stationxpos = [i.x for i in stationpos]
-            stationypos = [i.y for i in stationpos]
-            xrange =  (mininlist(stationxpos),maxinlist(stationxpos))
-            yrange =  (mininlist(stationypos),maxinlist(stationypos))
+            
+            x,y=0,0
+            if self.stations:
+                
+                stationspos = [self.stations[i].position for i in self.stations]
+                stationxpos = [i.x for i in stationspos]
+                stationypos = [i.y for i in stationspos]
+                xrange =  (mininlist(stationxpos),maxinlist(stationxpos))
+                yrange =  (mininlist(stationypos),maxinlist(stationypos))
 
-            a=True
-            b=False
-            while a:
-                b=True
-                xpos = random.range(*xrange)
-                ypos = random.range(*yrange)
+                b=random.randint(0,3)
+                if b==0:
+                    x=random.randint(xrange[0],xrange[1])
+                    y=yrange[1]+100
 
-                for i in range(stationpos):
-                    if hypot(Vector2D(xpos,ypos)-stationpos) < 100:
-                        b=False
-                        break
-                    
-                if b:
-                    pos = Vector2D(xpos,ypos)
-                    break
+                elif b==1:
+                    x=xrange[1]+100
+                    y=random.randint(yrange[0],yrange[1])
 
+                elif b==2:
+                    x= random.randint(xrange[0],xrange[1])
+                    y=yrange[0]-100
 
+                elif b==3:
+                    x=xrange[0]-100
+                    y=random.randint(yrange[0],yrange[1])
+            pos = Vector2D(x,y)
 
 
         for x in range(pos.x-2,pos.x+2+1):    # checking if this position is valid
@@ -164,7 +168,7 @@ class Gamelogic:
             [bool]: if succesfull return True else False
         """
         stat = self.stations[playerid]
-        newkritpos = stat.position + Vector2D(1,0)  # spawning krit west of 
+        newkritpos = stat.position + Vector2D(0,1)  # spawning krit north of player station
 
         if self.getblock(newkritpos).type != "air": # check if there is space to create a krit
             return False
@@ -278,7 +282,7 @@ class Gamelogic:
         blocktype = self.getblock(minepos)
 
 
-        if blocktype.type in gamelogic.nonminableblocks:   # if indestructable return false
+        if blocktype.type in Gamelogic.nonminableblocks:   # if indestructable return false
             return False
 
         elif blocktype.type == "pile":  # pile pickup
@@ -317,7 +321,7 @@ class Gamelogic:
         Args:
             playerid (int)
             kritid (int)
-            block (blockdata): block that the krit wants to place
+            block (Blockdata): block that the krit wants to place
 
         Returns:
             [bool]: returns True if successful, returns False if placepos is not air or inventory does not contain that block
@@ -369,9 +373,9 @@ class Gamelogic:
 # netwoking
 
 class clientdata:
-    def __init__(self,c,addr,id,username=""):
+    def __init__(self,c,addr,id,username="username"):
         self.c = c
-        self.address = addr
+        self.addr = addr
         self.clientid = id
         self.username = username
         
@@ -379,6 +383,8 @@ class clientdata:
 
 
 class Server():
+    tickdelay = 1 # in seconds
+
     def __init__(self,port,worldseed):
         self.gamelogic = Gamelogic(worldseed)
 
@@ -392,22 +398,15 @@ class Server():
         self.newid = 1
 
 
-    def send(self, client, data):
-        
-        message = data.encode("utf-8")
-
-        print(f"sending to {client.username}#{client.clientid} : {data}")
-        client.c.send(message) 
-
-
     def mainloop(self):
         # string the listening loop
-        start_new_thread(self.listenloop,) 
+        start_new_thread(self.listenloop,()) 
 
 
         while True:
             timestart = time.time()
 
+            
             for cli in self.conections:
                 if cli.instruction:
                     # [<int>instructonid,<str>instructiontype, args]
@@ -421,13 +420,13 @@ class Server():
 
                     returndata = self.processinstruction(cli,command)
                     
-                    cli.c.send(pickle.dumps([instructonid,returndata]))
+                    cli.c.send(pickle.dumps([instructonid,*returndata]))
 
-            timedelay = 1 + timestart - time.time() 
+            timedelay = Server.tickdelay + timestart - time.time() 
             if timedelay > 0:
                 time.sleep(timedelay)
            
-
+           
     def listenloop(self):
         
         self.s.bind((self.host, self.port)) 
@@ -445,7 +444,7 @@ class Server():
             # establish connection with client 
             # adding player to server, creating a station and krit
             c, addr = self.s.accept() 
-            newclient = clientdata(addr, c, self.newid)
+            newclient = clientdata(c,addr, self.newid)
             self.conections.append(newclient)
 
             self.gamelogic.create_station(newclient.clientid)
@@ -454,35 +453,38 @@ class Server():
             self.newid+=1
 
             
-            print(f"{newclient.addr} loged in as {newclient.clientid}") 
+            print(f"{newclient.addr} loged in with {newclient.clientid} as id") 
     
             
             # Start a new thread and return its identifier 
             start_new_thread(self.receiving, (newclient,)) 
+
+            newclient.c.send(pickle.dumps([0,"station_pos",self.gamelogic.stations[newclient.id].position]))
     
 
     def receiving(self,client):
+        """thread for receiving messages from client
+
+        Args:
+            client (clientdata): [clientdataobjection]
+        """
+
         while True:
             # [<int>messageid,<str>instructiontype, args]
-
-            message = self.s.recv(4096)
-            
-
             try:
-                message = pickle.loads(message)
-                print(f" {client.username}${client.id} : {message[0]} received")
-                client.instruction = message
-           
+                message = client.c.recv(4096)
+                if message:
+                    message = pickle.loads(message)
+                    print(f" {client.username}#{client.clientid} : {message[0]} received")
+                    client.instruction = message
+            
 
             except Exception as e:
                 print(e)
-
-
+                if isinstance(e, ConnectionAbortedError):
+                    print("closing thread")
+                    return False
             
-            
-
-
-    
 
     def processinstruction(self,clientdata,command):
         # commands
@@ -494,7 +496,7 @@ class Server():
 
         # krit_mine         {kritid}               [Blockdata]
         # krit_place        {kritid} {Blockdata}   [bool]
-        # krit_drop         {kritid} {Blockdata} {amount}       #TODO        
+        # krit_drop         {kritid} {Blockdata}   {amount}       #TODO        
 
 
         commandtype = command[0]
@@ -502,34 +504,40 @@ class Server():
         if commandtype == "krit_move_forward":
             kritid =  command[1]
             returndata = self.gamelogic.krit_move(clientdata.clientid,kritid)
-            return returndata
+            return commandtype,returndata
 
         elif commandtype == "krit_rotate_left":
             kritid =  command[1]
             returndata = self.gamelogic.krit_rotate_left(clientdata.clientid,kritid)
-            return returndata
+            return commandtype,returndata
 
         elif commandtype == "krit_rotate_right":
             kritid =  command[1]
             returndata = self.gamelogic.krit_rotate_right(clientdata.clientid,kritid)
-            return returndata
+            return commandtype,returndata
         
         elif commandtype == "krit_see":
             kritid =  command[1]
             returndata = self.gamelogic.krit_see(clientdata.clientid,kritid)
-            return returndata
+            return commandtype,returndata
 
         elif commandtype == "krit_mine":
             kritid =  command[1]
             returndata = self.gamelogic.krit_mine(clientdata.clientid,kritid)
-            return returndata
+            return commandtype,returndata
 
         elif commandtype == "krit_place":
             kritid =  command[1]
             blockdata = command[2]
             returndata = self.gamelogic.krit_(clientdata.clientid,kritid,blockdata)
-            return returndata
+            return commandtype,returndata
+
+        else:
+            return commandtype,"ERROR"
 
         return "ERROR"
 
 
+if __name__ == '__main__':
+    serv = Server(25565,10)
+    serv.mainloop()
