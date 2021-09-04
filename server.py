@@ -2,6 +2,8 @@
 import socket 
 import pickle
 
+import traceback
+
 # import thread module
 from _thread import *
 import threading 
@@ -23,16 +25,19 @@ def maxinlist(li):
         nmax = max(nmax,n)
     return nmax
 
+
 def mininlist(li):
     nmin = inf
     for n in li:
         nmin = min(nmin,n)
     return nmin
 
+
 # gamelogic class
 class Gamelogic:
     nonminableblocks = ["air", "station"]
-    seerange = 10
+    seethroughblocks = ["air", "pile"]
+    seerange = 3
 
     def __init__(self,seed):
         self.seed = seed
@@ -197,10 +202,10 @@ class Gamelogic:
 
         for i in range(Gamelogic.seerange):
             pos = lkrit.position + lkrit.direction*i
-            block = Blockdata(pos)
+            block = self.getblock(pos)
             blockarray.append([pos,block])
 
-            if block.type != "air":
+            if not block.type in Gamelogic.seethroughblocks:
                 break
         
         return blockarray
@@ -262,6 +267,7 @@ class Gamelogic:
         newdir = Vector2D(lkrit.direction.y,-lkrit.direction.x)
 
         lkrit.direction = newdir
+        self.krits[playerid][kritid] = lkrit
         return True
 
 
@@ -315,7 +321,7 @@ class Gamelogic:
             return True
 
 
-    def krit_place_block(self,playerid,kritid,block):
+    def krit_place(self,playerid,kritid,block):
         """places a block infront of the krit
 
         Args:
@@ -343,34 +349,57 @@ class Gamelogic:
         return True
 
 
-    def krit_drop(self,playerid,kritid,blocktype):
+    def krit_drop(self,playerid,kritid,blocktype, amount):
+        """drops blocks from inventory on ground on the player
+
+        Args:
+            playerid (int): the id that is asigned when client connects
+            kritid (int): which krit should drop
+            blocktype (Blockdata): the block you want to drop
+            amount (int): the amount of blocks you want to drop. min 0. max 25
+
+        Returns:
+            [int]: amount of dropped blocks, 0 can be that the krit doesnt have that block, the pile is already at 25, the pile is a different blocktype or some other var is incorrect
+        """
+
+        
         lkrit = self.krits[playerid][kritid]
-
-        if not lkrit.has_block(blocktype):
-            return False
-
-
+        
+        kritamount = lkrit.has_block(blocktype,amount)
+        amount = max(min(kritamount,amount),0)
+        
+        
         standingblock = self.getblock(lkrit.position)
-        if standingblock.type == "pile" and standingblock.data["block"].type==blocktype.type and standingblock.data["amount"] < 25: 
-            lkrit.remove_to_inventory(blocktype)
-            pileblock = Blockdata("pile", block=Blockdata(standingblock.data["block"]),amount=standingblock.data["amount"]+1)
-            self.setblock(lkrit.position, pileblock)
-            return True
-            
+        if standingblock.type == "pile":
+            if standingblock.data["block"].type==blocktype.type:
+
+                pileremain = 25 - standingblock.data["amount"]
+                droppedamount = min(pileremain,amount)
+
+                for _ in range(droppedamount):
+                    lkrit.remove_from_inventory(blocktype)
+
+                newpile = Blockdata("pile", block=Blockdata(standingblock.data["block"]),amount=standingblock.data["amount"]+droppedamount)
+                self.setblock(lkrit.position, newpile)
+                return droppedamount
+
 
         elif standingblock.type == "air":
-            lkrit.remove_to_inventory(blocktype)
-            pileblock = Blockdata("pile", block=blocktype,amount=1)
-            self.setblock(lkrit.position, pileblock)
-            return True
+            pileremain = 25
+            droppedamount = min(pileremain,amount)
+
+            for _ in range(droppedamount):
+                lkrit.remove_from_inventory(blocktype)
+
+            newpile = Blockdata("pile", block=Blockdata(standingblock.data["block"]),amount=droppedamount)
+            self.setblock(lkrit.position, newpile)
+            return droppedamount
+
+        return 0
 
 
-        return False
 
-
-
-
-# netwoking
+# the netwoking part  I AM WOKE
 
 class clientdata:
     def __init__(self,c,addr,id,username="username"):
@@ -394,20 +423,24 @@ class Server():
 
         self.print_lock = threading.Lock() 
 
-        self.conections = []
+        self.connections = []
         self.newid = 1
+
+        self.disconnectids = []
 
 
     def mainloop(self):
         # string the listening loop
         start_new_thread(self.listenloop,()) 
 
+        """mainloop for processing commands from clients, with a delay of tickdelay seconds
+        """
 
         while True:
             timestart = time.time()
 
-            
-            for cli in self.conections:
+            # processing instructions
+            for cli in self.connections:
                 if cli.instruction:
                     # [<int>instructonid,<str>instructiontype, args]
                     command = cli.instruction                    
@@ -422,6 +455,23 @@ class Server():
                     
                     cli.c.send(pickle.dumps([instructonid,*returndata]))
 
+
+            # clearing disconnected clients
+            disconnectclient = []
+
+            for c in self.connections:
+                if c.clientid in self.disconnectids:
+                    disconnectclient.append(c)
+                    self.disconnectids.remove(c.clientid)
+                    print(f"#{c.clientid} disconnected")
+                    
+            for c in disconnectclient:
+                self.connections.remove(c)
+            
+
+
+
+            # tick delay
             timedelay = Server.tickdelay + timestart - time.time() 
             if timedelay > 0:
                 time.sleep(timedelay)
@@ -438,14 +488,14 @@ class Server():
 
 
         
-        # a forever loop until client wants to exit 
+        # a forever loop until server stops
         while True: 
     
             # establish connection with client 
             # adding player to server, creating a station and krit
             c, addr = self.s.accept() 
             newclient = clientdata(c,addr, self.newid)
-            self.conections.append(newclient)
+            self.connections.append(newclient)
 
             self.gamelogic.create_station(newclient.clientid)
             self.gamelogic.create_krit(newclient.clientid)
@@ -456,10 +506,15 @@ class Server():
             print(f"{newclient.addr} loged in with {newclient.clientid} as id") 
     
             
-            # Start a new thread and return its identifier 
+            # Start a new receiving thread 
             start_new_thread(self.receiving, (newclient,)) 
-
-            newclient.c.send(pickle.dumps([0,"station_pos",self.gamelogic.stations[newclient.id].position]))
+            
+            # Sending some info , client id, krits and station position
+            newclient.c.send(pickle.dumps([0,"client_id",newclient.clientid]))
+            time.sleep(.1)
+            newclient.c.send(pickle.dumps([0,"station_pos",self.gamelogic.stations[newclient.clientid].position]))
+            time.sleep(.1)
+            newclient.c.send(pickle.dumps([0,"krits",self.gamelogic.krits[newclient.clientid]]))
     
 
     def receiving(self,client):
@@ -469,34 +524,42 @@ class Server():
             client (clientdata): [clientdataobjection]
         """
 
-        while True:
+        while client in self.connections:
             # [<int>messageid,<str>instructiontype, args]
             try:
                 message = client.c.recv(4096)
                 if message:
                     message = pickle.loads(message)
-                    print(f" {client.username}#{client.clientid} : {message[0]} received")
+                    print(f" {client.username}#{client.clientid} : {message} received")
                     client.instruction = message
             
 
             except Exception as e:
-                print(e)
-                if isinstance(e, ConnectionAbortedError):
-                    print("closing thread")
-                    return False
-            
+                # if the error is about connection issues close this thread
+                if isinstance(e, ConnectionAbortedError) or isinstance(e, ConnectionResetError):
+                    self.disconnectids.append(client.clientid)
+                    print(f"connection error closing receiving thread #{client.clientid}")
+                    break
+                else:
+                    traceback.print_exc()
+        print(f"losing receiving thread #{client.clientid}")
+        
 
     def processinstruction(self,clientdata,command):
         # commands
+        #       ---------------KRIT COMMANDS---------------
+        # krit_move_forward {kritid}                        [bool]
+        # krit_rotate_left  {kritid}                        [bool]
+        # krit_rotate_right {kritid}                        [bool]
+        # krit_see          {kritid}                        [blockarray]
 
-        # krit_move_forward {kritid}               [bool]
-        # krit_rotate_left  {kritid}               [bool]
-        # krit_rotate_right {kritid}               [bool]
-        # krit_see          {kritid}               [blockarray]
+        # krit_mine         {kritid}                        [Blockdata]
+        # krit_place        {kritid} {Blockdata}            [bool]
+        # krit_drop         {kritid} {Blockdata} {amount}   [int] {amount that dropped}      
 
-        # krit_mine         {kritid}               [Blockdata]
-        # krit_place        {kritid} {Blockdata}   [bool]
-        # krit_drop         {kritid} {Blockdata}   {amount}       #TODO        
+        #         ---------------SETTINGS---------------
+        # set_username {username}                           [bool]
+        # disconnect {ownclientid}                          []
 
 
         commandtype = command[0]
@@ -529,8 +592,27 @@ class Server():
         elif commandtype == "krit_place":
             kritid =  command[1]
             blockdata = command[2]
-            returndata = self.gamelogic.krit_(clientdata.clientid,kritid,blockdata)
+            returndata = self.gamelogic.krit_place(clientdata.clientid,kritid,blockdata)
             return commandtype,returndata
+
+        elif commandtype == "krit_drop":
+            kritid =  command[1]
+            blockdata = command[2]
+            amount = command[3]
+            returndata = self.gamelogic.krit_drop(clientdata.clientid,kritid,blockdata)
+            return commandtype,returndata
+
+
+
+        elif commandtype == "set_username":
+            clientdata.username = command[1]
+            return commandtype,True
+
+        elif commandtype == "disconnect":
+            if command[1] == clientdata.clientid:
+                self.disconnectids.append(clientdata.clientid)
+                return commandtype,True
+            return commandtype,False
 
         else:
             return commandtype,"ERROR"
