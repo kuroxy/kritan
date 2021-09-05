@@ -37,13 +37,14 @@ class Krit(object):
             [bool]: returns True if successful, False if inventory full
         """
         for i in range(len(self.inventory)):
-            if self.inventory[i][0] == block.type and self.inventory[i][1] < 100:   # if slot it correct type and slot is not full
-                self.inventory[i][1]+=1
-                return True
+            if self.inventory[i][0]:
+                if self.inventory[i][0].type == block.type and self.inventory[i][1] < 100:   # if slot it correct type and slot is not full
+                    self.inventory[i][1]+=1
+                    return True
 
         for i in range(len(self.inventory)):
             if self.inventory[i][0] == None:   # if slot is empty
-                self.inventory[i][0] = block.type
+                self.inventory[i][0] = block
                 self.inventory[i][1] = 1
                 return True
 
@@ -61,13 +62,13 @@ class Krit(object):
         """
         
         for i in range(len(self.inventory)):
-            i = len(self.inventory)-i
-            if self.inventory[i][0] == block.type and self.inventory[i][1] > 0:   # if slot it correct type and slot is not full
-                self.inventory[i][1]-=1
-                if self.inventory[i][1] == 0:
-                    self.inventory[i][0] = None
-                return True
-
+            if self.inventory[i][0]:
+                if self.inventory[i][0].type == block.type and self.inventory[i][1] > 0:   # if slot it correct type and slot is not full
+                    self.inventory[i][1]-=1
+                    if self.inventory[i][1] == 0:
+                        self.inventory[i][0] = None
+                    return True
+  
 
         return False   
 
@@ -84,8 +85,9 @@ class Krit(object):
         """
         inventoryamount=0
         for i in range(len(self.inventory)):
-            if self.inventory[i][0] == block.type:
-                inventoryamount+=self.inventory[i][1]
+            if self.inventory[i][0]:
+                if self.inventory[i][0].type == block.type:
+                    inventoryamount+=self.inventory[i][1]
                 
         if inventoryamount>=amount:
             return amount

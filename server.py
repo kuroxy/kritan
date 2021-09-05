@@ -267,7 +267,6 @@ class Gamelogic:
         newdir = Vector2D(lkrit.direction.y,-lkrit.direction.x)
 
         lkrit.direction = newdir
-        self.krits[playerid][kritid] = lkrit
         return True
 
 
@@ -340,7 +339,7 @@ class Gamelogic:
             return False
 
 
-        if not lkrit.remove_to_inventory(block):
+        if not lkrit.remove_from_inventory(block):
             return False    # doesnt have that block in his inventory
 
 
@@ -366,8 +365,10 @@ class Gamelogic:
         lkrit = self.krits[playerid][kritid]
         
         kritamount = lkrit.has_block(blocktype,amount)
+        print(amount)
         amount = max(min(kritamount,amount),0)
-        
+        print(kritamount)
+        print(amount)
         
         standingblock = self.getblock(lkrit.position)
         if standingblock.type == "pile":
@@ -379,8 +380,10 @@ class Gamelogic:
                 for _ in range(droppedamount):
                     lkrit.remove_from_inventory(blocktype)
 
-                newpile = Blockdata("pile", block=Blockdata(standingblock.data["block"]),amount=standingblock.data["amount"]+droppedamount)
-                self.setblock(lkrit.position, newpile)
+                if droppedamount:
+                    newpile = Blockdata("pile", block=Blockdata(standingblock.data["block"]),amount=standingblock.data["amount"]+droppedamount)
+                    self.setblock(lkrit.position, newpile)
+
                 return droppedamount
 
 
@@ -391,10 +394,13 @@ class Gamelogic:
             for _ in range(droppedamount):
                 lkrit.remove_from_inventory(blocktype)
 
-            newpile = Blockdata("pile", block=Blockdata(standingblock.data["block"]),amount=droppedamount)
-            self.setblock(lkrit.position, newpile)
+            if droppedamount:
+                newpile = Blockdata("pile", block=Blockdata(standingblock.type),amount=droppedamount)
+                self.setblock(lkrit.position, newpile)
+            
             return droppedamount
 
+        print("error")
         return 0
 
 
@@ -472,7 +478,7 @@ class Server():
 
 
             # tick delay
-            timedelay = Server.tickdelay + timestart - time.time() 
+            timedelay = Server.tickdelay - (time.time() - timestart)
             if timedelay > 0:
                 time.sleep(timedelay)
            
@@ -509,14 +515,6 @@ class Server():
             # Start a new receiving thread 
             start_new_thread(self.receiving, (newclient,)) 
             
-            # Sending some info , client id, krits and station position
-            newclient.c.send(pickle.dumps([0,"client_id",newclient.clientid]))
-            time.sleep(.1)
-            newclient.c.send(pickle.dumps([0,"station_pos",self.gamelogic.stations[newclient.clientid].position]))
-            time.sleep(.1)
-            newclient.c.send(pickle.dumps([0,"krits",self.gamelogic.krits[newclient.clientid]]))
-    
-
     def receiving(self,client):
         """thread for receiving messages from client
 
@@ -547,7 +545,13 @@ class Server():
 
     def processinstruction(self,clientdata,command):
         # commands
+        #       ---------------UTILITY COMMANDS---------------
+        # get_krits 
+        # get_station
+        # get_clientdata
+
         #       ---------------KRIT COMMANDS---------------
+
         # krit_move_forward {kritid}                        [bool]
         # krit_rotate_left  {kritid}                        [bool]
         # krit_rotate_right {kritid}                        [bool]
@@ -564,7 +568,18 @@ class Server():
 
         commandtype = command[0]
 
-        if commandtype == "krit_move_forward":
+        #       ---------------UTILITY COMMANDS---------------
+        if commandtype == "get_clientdata":
+            return commandtype,clientdata.clientid
+
+        elif commandtype == "get_station":
+            return commandtype,self.gamelogic.stations[clientdata.clientid]
+
+        elif commandtype == "get_krits":
+            return commandtype,self.gamelogic.krits[clientdata.clientid]
+
+        #       ---------------KRIT COMMANDS---------------
+        elif commandtype == "krit_move_forward":
             kritid =  command[1]
             returndata = self.gamelogic.krit_move(clientdata.clientid,kritid)
             return commandtype,returndata
@@ -599,11 +614,10 @@ class Server():
             kritid =  command[1]
             blockdata = command[2]
             amount = command[3]
-            returndata = self.gamelogic.krit_drop(clientdata.clientid,kritid,blockdata)
+            returndata = self.gamelogic.krit_drop(clientdata.clientid,kritid,blockdata,amount)
             return commandtype,returndata
 
-
-
+        #         ---------------SETTINGS---------------
         elif commandtype == "set_username":
             clientdata.username = command[1]
             return commandtype,True
