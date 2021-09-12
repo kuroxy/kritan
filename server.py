@@ -2,21 +2,25 @@
 import socket 
 import pickle
 
+#errors
 import traceback
 
 # import thread module
 from _thread import *
 import threading 
 
-from math import inf,hypot
+
+from math import inf
 import random
 import time
+import sys
 
 from vectors import Vector2D
 from worldgen import Worldgenerator
 from blocktype import Blockdata
-
 from playerclasses import Station, Krit
+
+from display import Display
 
 
 def maxinlist(li):
@@ -50,8 +54,30 @@ class Gamelogic:
 
         # station is a base of a player
         self.stations = {} #indexed "{playerid}":stationobj
-        self.krits = {} # indexed "{playerid}":[kritobject,..]
+        self.krits = {} # indexed "{playerid}":{kritid:kritobject,..}
 
+    def readblock(self,pos):
+        """getblock but without creating a chunk if it isn't generated
+
+        Args:
+            pos (Vector2D): Absolute position
+
+        Returns:
+            [Blockdata]: if block doesnt exit return unknown block
+        """
+        chunkpos = pos/10
+        chunkpos = chunkpos.floor()
+
+        blockoffset = pos%10
+
+        strchunkpos = f"{chunkpos.x}.{chunkpos.y}"
+
+        if not strchunkpos in self.world:
+            return Blockdata()
+        
+
+        bl = self.world[strchunkpos][blockoffset.y][blockoffset.x]
+        return bl
 
     def getblock(self,pos):
         """get a blockobj from position in world
@@ -60,10 +86,11 @@ class Gamelogic:
             pos (Vector2D): Absolute position
 
         Returns:
-            [block]: returns blockobject
+            [Blockdata]: returns blockobject
         """
-        chunkpos = pos/10 
-        chunkpos = chunkpos.to_int()
+        
+        chunkpos = pos/10
+        chunkpos = chunkpos.floor()
         blockoffset = pos%10
 
         strchunkpos = f"{chunkpos.x}.{chunkpos.y}"
@@ -87,13 +114,13 @@ class Gamelogic:
             [bool]: if succesfull returns True
         """
         chunkpos = pos/10 
-        chunkpos = chunkpos.to_int()
+        chunkpos = chunkpos.floor()
         blockoffset = pos%10
 
         strchunkpos = f"{chunkpos.x}.{chunkpos.y}"
 
         if not strchunkpos in self.world:
-            self.world[strchunkpos] = self.generate_chunk(chunkpos)
+            self.world[strchunkpos] = self.worldgen.generate_chunk(chunkpos)
         
 
         self.world[strchunkpos][blockoffset.y][blockoffset.x] = blockobj
@@ -228,9 +255,29 @@ class Gamelogic:
         blocktype = self.getblock(newpos).type
 
         if blocktype != "air":  
+            #self.log(f"[debug] krit move {blocktype}")
             return False
         
         lkrit.position = newpos
+        return True
+
+
+    def krit_rotate_right(self,playerid, kritid):
+        """rotates a krit right
+
+        Args:
+            playerid (Int): id of the player
+            kritid (Int): id of the krit of the player
+
+        Returns:
+            [bool]: returns True if successful
+        """
+        lkrit = self.krits[playerid][kritid]
+
+        
+        newdir = Vector2D(lkrit.direction.y,-lkrit.direction.x)
+
+        lkrit.direction = newdir
         return True
 
 
@@ -247,24 +294,6 @@ class Gamelogic:
         lkrit = self.krits[playerid][kritid]
 
         newdir = Vector2D(-lkrit.direction.y,lkrit.direction.x)
-
-        lkrit.direction = newdir
-        return True
-
-
-    def krit_rotate_right(self,playerid, kritid):
-        """rotates a krit right
-
-        Args:
-            playerid (Int): id of the player
-            kritid (Int): id of the krit of the player
-
-        Returns:
-            [bool]: returns True if successful
-        """
-        lkrit = self.krits[playerid][kritid]
-
-        newdir = Vector2D(lkrit.direction.y,-lkrit.direction.x)
 
         lkrit.direction = newdir
         return True
@@ -365,11 +394,8 @@ class Gamelogic:
         lkrit = self.krits[playerid][kritid]
         
         kritamount = lkrit.has_block(blocktype,amount)
-        print(amount)
         amount = max(min(kritamount,amount),0)
-        print(kritamount)
-        print(amount)
-        
+
         standingblock = self.getblock(lkrit.position)
         if standingblock.type == "pile":
             if standingblock.data["block"].type==blocktype.type:
@@ -399,8 +425,6 @@ class Gamelogic:
                 self.setblock(lkrit.position, newpile)
             
             return droppedamount
-
-        print("error")
         return 0
 
 
@@ -420,7 +444,7 @@ class clientdata:
 class Server():
     tickdelay = 1 # in seconds
 
-    def __init__(self,port,worldseed):
+    def __init__(self,port,worldseed, gui=None):
         self.gamelogic = Gamelogic(worldseed)
 
         self.host = ""
@@ -429,38 +453,60 @@ class Server():
 
         self.print_lock = threading.Lock() 
 
-        self.connections = []
+        self.connections = []   #list with active connections
+        self.accounts = []  #same as connectionslist but if client disconnects it doesn't get removed 
         self.newid = 1
 
         self.disconnectids = []
 
+        self.stop = False
+
+        self.gui = gui
+        if gui:        
+            self.gui = Display(self.gamelogic,self)
+            start_new_thread(self.gui.main,()) 
+
+
+    def log(self,message):
+        logtime = time.strftime('%H:%M:%S', time.gmtime())
+        if self.gui:
+            self.gui.logs.append(f"[{logtime}]{message}")
+        else:
+            print(f"[{logtime}]{message}")
+    
 
     def mainloop(self):
         # string the listening loop
         start_new_thread(self.listenloop,()) 
-
-        """mainloop for processing commands from clients, with a delay of tickdelay seconds
+       
+        """mainloop for processing commands from clients, with a delay of tickdelay seconds and exiting if gui.stop equels true
         """
 
-        while True:
+        while not self.stop:
+            if self.gui:
+                self.stop = self.gui.stop
+
+
             timestart = time.time()
 
             # processing instructions
             for cli in self.connections:
-                if cli.instruction:
-                    # [<int>instructonid,<str>instructiontype, args]
-                    command = cli.instruction                    
-                     
-                    cli.instruction = []
+                try:
+                    if cli.instruction:
+                        # [<int>instructonid,<str>instructiontype, args]
+                        command = cli.instruction                    
+                        
+                        cli.instruction = []
 
-                    instructonid = command[0]
-                    command = command[1:]
-                    
+                        instructonid = command[0]
+                        command = command[1:]
+                        
 
-                    returndata = self.processinstruction(cli,command)
-                    
-                    cli.c.send(pickle.dumps([instructonid,*returndata]))
-
+                        returndata = self.processinstruction(cli,command)
+                        
+                        cli.c.send(pickle.dumps([instructonid,*returndata]))
+                except:
+                    disconnectclient.append(cli)
 
             # clearing disconnected clients
             disconnectclient = []
@@ -469,7 +515,7 @@ class Server():
                 if c.clientid in self.disconnectids:
                     disconnectclient.append(c)
                     self.disconnectids.remove(c.clientid)
-                    print(f"#{c.clientid} disconnected")
+                    self.log(f"#{c.clientid} disconnected")
                     
             for c in disconnectclient:
                 self.connections.remove(c)
@@ -486,22 +532,24 @@ class Server():
     def listenloop(self):
         
         self.s.bind((self.host, self.port)) 
-        print("socket binded to port", self.port) 
+        self.log(f"[NETWORKING] socket binded to port {self.port}") 
     
         # put the socket into listening mode 
         self.s.listen()
-        print("socket is listening") 
-
+        self.log("[NETWORKING] socket is waiting for connections") 
 
         
+        
         # a forever loop until server stops
-        while True: 
+        while not self.stop: 
     
             # establish connection with client 
             # adding player to server, creating a station and krit
+
             c, addr = self.s.accept() 
             newclient = clientdata(c,addr, self.newid)
             self.connections.append(newclient)
+            self.accounts.append(newclient)
 
             self.gamelogic.create_station(newclient.clientid)
             self.gamelogic.create_krit(newclient.clientid)
@@ -509,7 +557,7 @@ class Server():
             self.newid+=1
 
             
-            print(f"{newclient.addr} loged in with {newclient.clientid} as id") 
+            self.log(f"[NETWORKING] {newclient.addr} logged in as {newclient.username}#{newclient.clientid}") 
     
             
             # Start a new receiving thread 
@@ -522,25 +570,25 @@ class Server():
             client (clientdata): [clientdataobjection]
         """
 
-        while client in self.connections:
+        while client in self.connections and not self.stop:
             # [<int>messageid,<str>instructiontype, args]
             try:
                 message = client.c.recv(4096)
                 if message:
                     message = pickle.loads(message)
-                    print(f" {client.username}#{client.clientid} : {message} received")
+                    self.log(f"[INSRUCTION] {client.username}#{client.clientid} : {message}")
                     client.instruction = message
             
 
             except Exception as e:
                 # if the error is about connection issues close this thread
                 if isinstance(e, ConnectionAbortedError) or isinstance(e, ConnectionResetError):
-                    self.disconnectids.append(client.clientid)
-                    print(f"connection error closing receiving thread #{client.clientid}")
-                    break
+
+                    self.log(f"[NETWORKING] Connection error closing receiving thread #{client.clientid}")
+                    return False
                 else:
                     traceback.print_exc()
-        print(f"losing receiving thread #{client.clientid}")
+        self.log(f"[THREADS] closing receiving thread #{client.clientid}")
         
 
     def processinstruction(self,clientdata,command):
@@ -581,6 +629,13 @@ class Server():
         #       ---------------KRIT COMMANDS---------------
         elif commandtype == "krit_move_forward":
             kritid =  command[1]
+        
+            lkrit = self.gamelogic.krits[clientdata.clientid][kritid]
+            newpos = lkrit.position + lkrit.direction
+
+            blocktype = self.gamelogic.getblock(newpos).type
+
+
             returndata = self.gamelogic.krit_move(clientdata.clientid,kritid)
             return commandtype,returndata
 
@@ -634,6 +689,13 @@ class Server():
         return "ERROR"
 
 
+
+
+
 if __name__ == '__main__':
-    serv = Server(25565,10)
+    render = "gui" in [a.lower() for a in sys.argv] 
+ 
+    serv = Server(63534,124,render) 
+
+
     serv.mainloop()

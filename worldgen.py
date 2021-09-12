@@ -81,8 +81,8 @@ class Worldgenerator(object):
         """
         chunk = [[-1 for i in range(10)] for j in range(10)] 
 
-        for x in range(10):
-            for y in range(10):
-                chunk[x][y] = self.generate_block(Vector2D(x+chunkpos.x*10,y+chunkpos.y*10))
+        for y in range(10):
+            for x in range(10):
+                chunk[y][x] = self.generate_block(Vector2D(x+chunkpos.x*10,y+chunkpos.y*10))
 
         return chunk

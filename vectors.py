@@ -62,3 +62,12 @@ class Vector2D:
     def to_int(self):
         """Returns the rounded vector """
         return Vector2D(int(self.x),int(self.y))
+
+    def floor(self):
+        return Vector2D(math.floor(self.x),math.floor(self.y))
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+        
+    def to_list(self):
+        return [self.x,self.y]
