@@ -1,10 +1,7 @@
-import _curses
 import os
 import curses
 from vectors import Vector2D
-import time
 import sys
-from enum import Enum
 import operator
 import functools
 
@@ -67,8 +64,8 @@ class Display():
         self.activemenu = self.settingsmenu
 
         self.selected = 0   # in menu selected menu item
-        self.selecteduser = -1
-        self.selectedkrit = -1
+        self.selecteduser = False
+        self.selectedkrit = False
         self.stop = False
 
 
@@ -257,6 +254,26 @@ class Display():
                 self.loglevels[self.selected][1] = not self.loglevels[self.selected][1]
 
 
+    def setselection(self):
+        maxselected=-1
+        if self.activemenu.name == "Main": 
+            maxselected = len(self.activemenu.children)-1
+        elif self.activemenu.name == "Exit": 
+            maxselected = 0    #TODO
+        elif self.activemenu.name == "Player List": 
+            maxselected = len(self.server.accounts)-1
+        elif self.activemenu.name == "Player Attributes":
+            maxselected = 1
+        elif self.activemenu.name == "Krit List": 
+            maxselected = len(self.gamelogic.krits[self.selecteduser.clientid])-1
+        elif self.activemenu.name == "Krit Attributes": 
+            maxselected = 1
+        elif self.activemenu.name == "Log Settings": 
+            maxselected = len(self.loglevels)-1
+
+        self.selected = min(max(-1,self.selected),maxselected)
+
+
     def main(self):
         mainwin = curses.initscr()
         curses.start_color()
@@ -318,7 +335,9 @@ class Display():
                     self.selected=-1
                     self.activemenu = self.settingsmenu
 
-                elif key == curses.KEY_ENTER or key == 10 or key == 13: # enter key
+
+                self.setselection() # Setting selected to bounds if it is out of bounds
+                if key == curses.KEY_ENTER or key == 10 or key == 13: # enter key
                     self.settinghandeling()
 
 
