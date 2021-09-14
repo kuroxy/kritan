@@ -20,7 +20,8 @@ from worldgen import Worldgenerator
 from blocktype import Blockdata
 from playerclasses import Station, Krit
 
-from display import Display
+from display import Display,logging
+
 
 
 def maxinlist(li):
@@ -254,8 +255,7 @@ class Gamelogic:
 
         blocktype = self.getblock(newpos).type
 
-        if blocktype != "air":  
-            #self.log(f"[debug] krit move {blocktype}")
+        if blocktype != "air": 
             return False
         
         lkrit.position = newpos
@@ -467,10 +467,10 @@ class Server():
             start_new_thread(self.gui.main,()) 
 
 
-    def log(self,message):
+    def log(self,message,level=logging.OTHER):
         logtime = time.strftime('%H:%M:%S', time.gmtime())
         if self.gui:
-            self.gui.logs.append(f"[{logtime}]{message}")
+            self.gui.logs.append([f"[{logtime}]{message}",level])
         else:
             print(f"[{logtime}]{message}")
     
@@ -503,7 +503,8 @@ class Server():
                         
 
                         returndata = self.processinstruction(cli,command)
-                        
+                        self.log(f"[SENDING] {cli.username}#{cli.clientid} : {instructonid} {returndata[0]}", logging.DEBUG )
+
                         cli.c.send(pickle.dumps([instructonid,*returndata]))
                 except:
                     disconnectclient.append(cli)
@@ -515,7 +516,7 @@ class Server():
                 if c.clientid in self.disconnectids:
                     disconnectclient.append(c)
                     self.disconnectids.remove(c.clientid)
-                    self.log(f"#{c.clientid} disconnected")
+                    self.log(f"{c.username}#{c.clientid} disconnected",logging.CHAT | logging.INFO)
                     
             for c in disconnectclient:
                 self.connections.remove(c)
@@ -532,11 +533,11 @@ class Server():
     def listenloop(self):
         
         self.s.bind((self.host, self.port)) 
-        self.log(f"[NETWORKING] socket binded to port {self.port}") 
+        self.log(f"[NETWORKING] socket binded to port {self.port}", logging.INFO) 
     
         # put the socket into listening mode 
         self.s.listen()
-        self.log("[NETWORKING] socket is waiting for connections") 
+        self.log("[NETWORKING] socket is waiting for connections", logging.INFO) 
 
         
         
@@ -557,7 +558,7 @@ class Server():
             self.newid+=1
 
             
-            self.log(f"[NETWORKING] {newclient.addr} logged in as {newclient.username}#{newclient.clientid}") 
+            self.log(f"[NETWORKING] {newclient.addr} logged in as {newclient.username}#{newclient.clientid}", logging.INFO | logging.CHAT) 
     
             
             # Start a new receiving thread 
@@ -576,7 +577,7 @@ class Server():
                 message = client.c.recv(4096)
                 if message:
                     message = pickle.loads(message)
-                    self.log(f"[INSRUCTION] {client.username}#{client.clientid} : {message}")
+                    self.log(f"[INSRUCTION] {client.username}#{client.clientid} : {message}", logging.DEBUG )
                     client.instruction = message
             
 
@@ -584,11 +585,11 @@ class Server():
                 # if the error is about connection issues close this thread
                 if isinstance(e, ConnectionAbortedError) or isinstance(e, ConnectionResetError):
 
-                    self.log(f"[NETWORKING] Connection error closing receiving thread #{client.clientid}")
+                    self.log(f"[NETWORKING] Connection error closing receiving thread #{client.clientid}", logging.ERROR | logging.DEBUG)
                     return False
                 else:
                     traceback.print_exc()
-        self.log(f"[THREADS] closing receiving thread #{client.clientid}")
+        self.log(f"[THREADS] closing receiving thread #{client.clientid}", logging.INFO)
         
 
     def processinstruction(self,clientdata,command):

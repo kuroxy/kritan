@@ -4,8 +4,9 @@ import curses
 from vectors import Vector2D
 import time
 import sys
-
-
+from enum import Enum
+import operator
+import functools
 
 class Node:
     def __init__(self,name):
@@ -42,6 +43,12 @@ def createmenu():
     return main
 
 
+class logging():
+    CHAT = 2**0
+    DEBUG = 2*1
+    INFO = 2**2
+    ERROR = 2**3
+    OTHER = 2**4
 
 
 class Display():
@@ -50,12 +57,14 @@ class Display():
         self.gamelogic = gamelogic
         self.server = server
         self.logs = []
+        self.loglevels = [[logging.CHAT,1],[logging.DEBUG,0],[logging.INFO,1],[logging.ERROR,1],[logging.OTHER,1]]
+        self.logtostr = {logging.CHAT:"CHAT",logging.DEBUG:"DEBUG",logging.INFO:"INFO",logging.ERROR:"ERROR",logging.OTHER:"OTHER"}
 
         self.camerasize = [35,26]
         self.camerapos = [0,0]
 
         self.settingsmenu = createmenu()  #menu structure
-        self.activemenu = self.settingsmenu.main
+        self.activemenu = self.settingsmenu
 
         self.selected = 0   # in menu selected menu item
         self.selecteduser = -1
@@ -63,13 +72,24 @@ class Display():
         self.stop = False
 
 
+    def log(self,message,level=logging.OTHER):
+        self.logs.append([message,level])
+
+
     def drawlogswindow(self,logwindow):
         logwindow.clear()
         logwindow.border()
         logwindow.addstr(0,3,"  LOGS  ")
+        logfilter = functools.reduce(operator.ior, map(lambda x: x[0] * x[1], self.loglevels))
+        lines = 0
 
-        for i in range(min(len(self.logs),10)):
-            logwindow.addstr(1+i,1, self.logs[-1-i])
+        for log in reversed(self.logs):
+            if log[1] & logfilter:
+                logwindow.addstr(1+lines,1, log[0])
+                lines+=1
+            
+            if lines == 9:
+                break
 
 
     def drawterrain(self, terrainwindow):
@@ -185,7 +205,14 @@ class Display():
                 else:
                     settingwindow.addstr(4+i,3,f"Slot#{slotnum} Empty", curses.color_pair(2))
 
-        
+        elif self.activemenu.name == "Log Settings":
+            for idx,loglevel in enumerate(self.loglevels):
+                if loglevel[1]:
+                    settingwindow.addstr(3+idx*2,3,f"[+] {self.logtostr[loglevel[0]]}", curses.color_pair(2) | (idx == self.selected)*2097152)
+                else:
+                    settingwindow.addstr(3+idx*2,3,f"[ ] {self.logtostr[loglevel[0]]}", curses.color_pair(2) | (idx == self.selected)*2097152)
+
+
     def settinghandeling(self):
         
         if self.activemenu.name == "Main":
@@ -224,6 +251,10 @@ class Display():
 
             elif self.selected==1:  # MOVE CAMERA TO KRIT OPTION
                 self.camerapos = self.selectedkrit.position.to_list()
+
+        elif self.activemenu.name == "Log Settings":
+            if self.selected>=0 and self.selected<len(self.loglevels):
+                self.loglevels[self.selected][1] = not self.loglevels[self.selected][1]
 
 
     def main(self):
@@ -285,7 +316,7 @@ class Display():
                     self.selected+=1
                 elif key == 27: # escape key
                     self.selected=-1
-                    self.activemenu = self.settingsmenu.main
+                    self.activemenu = self.settingsmenu
 
                 elif key == curses.KEY_ENTER or key == 10 or key == 13: # enter key
                     self.settinghandeling()
