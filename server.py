@@ -138,6 +138,7 @@ class Gamelogic:
         Returns:
             [bool]: if placed return True else return False
         """
+        pos = None
         if pos == None:
             
             x,y=0,0
@@ -223,7 +224,7 @@ class Gamelogic:
             kritid (int)
 
         Returns:
-            [list [Vector2D, Blockdata]]: returns an array of blocks till there is a block or a range of 10
+            [list [Vector2D, Blockdata]]: returns an array of blocks till there is a block or a range of gamelogic.seerange
         """
         lkrit = self.krits[playerid][kritid]
         blockarray = []
@@ -461,7 +462,7 @@ class Server():
 
         self.stop = False
 
-        self.gui = gui
+        self.gui = None
         if gui:        
             self.gui = Display(self.gamelogic,self)
             start_new_thread(self.gui.main,()) 
@@ -479,13 +480,13 @@ class Server():
         # string the listening loop
         start_new_thread(self.listenloop,()) 
        
-        """mainloop for processing commands from clients, with a delay of tickdelay seconds and exiting if gui.stop equels true
+        """mainloop for processing commands from clients, with a delay of tickdelay seconds and exiting if gui.stop equals true
         """
 
         while not self.stop:
             if self.gui:
                 self.stop = self.gui.stop
-
+            
 
             timestart = time.time()
 
@@ -493,19 +494,20 @@ class Server():
             for cli in self.connections:
                 try:
                     if cli.instruction:
+                        
                         # [<int>instructonid,<str>instructiontype, args]
                         command = cli.instruction                    
-                        
                         cli.instruction = []
-
-                        instructonid = command[0]
-                        command = command[1:]
                         
+                        self.log(f"[SENDING] h1", logging.DEBUG )
+                        repeatdata,returndata = self.processinstruction(cli,command)
+                        self.log(f"[SENDING] {repeatdata} {returndata}", logging.DEBUG )
 
-                        returndata = self.processinstruction(cli,command)
-                        self.log(f"[SENDING] {cli.username}#{cli.clientid} : {instructonid} {returndata[0]}", logging.DEBUG )
 
-                        cli.c.send(pickle.dumps([instructonid,*returndata]))
+                        cli.c.send(pickle.dumps([repeatdata,returndata]))
+
+                        self.log(f"[SENDING] {cli.username}#{cli.clientid} :  {[repeatdata,returndata]}", logging.DEBUG )
+
                 except:
                     disconnectclient.append(cli)
 
@@ -531,7 +533,8 @@ class Server():
            
            
     def listenloop(self):
-        
+        """listing for server connections"""
+
         self.s.bind((self.host, self.port)) 
         self.log(f"[NETWORKING] socket binded to port {self.port}", logging.INFO) 
     
@@ -556,8 +559,6 @@ class Server():
             self.gamelogic.create_krit(newclient.clientid)
 
             self.newid+=1
-
-            
             self.log(f"[NETWORKING] {newclient.addr} logged in as {newclient.username}#{newclient.clientid}", logging.INFO | logging.CHAT) 
     
             
@@ -588,17 +589,19 @@ class Server():
                     self.log(f"[NETWORKING] Connection error closing receiving thread #{client.clientid}", logging.ERROR | logging.DEBUG)
                     return False
                 else:
+                    self.log("[TRACEBACK] " + traceback.format_exc().splitlines()[-1],level=logging.DEBUG|logging.ERROR)
                     traceback.print_exc()
+            
         self.log(f"[THREADS] closing receiving thread #{client.clientid}", logging.INFO)
         
 
     def processinstruction(self,clientdata,command):
         # commands
         #       ---------------UTILITY COMMANDS---------------
-        # get_krits 
-        # get_station
-        # get_clientdata
-
+        # get_clientdata                                     [int]
+        # get_station                                        [stationobj]
+        # get_krits                                          [kritdictionary]    
+        # disconnect {ownclientid}                          
         #       ---------------KRIT COMMANDS---------------
 
         # krit_move_forward {kritid}                        [bool]
@@ -612,20 +615,20 @@ class Server():
 
         #         ---------------SETTINGS---------------
         # set_username {username}                           [bool]
-        # disconnect {ownclientid}                          []
+        
 
 
         commandtype = command[0]
 
         #       ---------------UTILITY COMMANDS---------------
         if commandtype == "get_clientdata":
-            return commandtype,clientdata.clientid
+            return command,clientdata.clientid
 
         elif commandtype == "get_station":
-            return commandtype,self.gamelogic.stations[clientdata.clientid]
+            return command,self.gamelogic.stations[clientdata.clientid]
 
         elif commandtype == "get_krits":
-            return commandtype,self.gamelogic.krits[clientdata.clientid]
+            return command,self.gamelogic.krits[clientdata.clientid]
 
         #       ---------------KRIT COMMANDS---------------
         elif commandtype == "krit_move_forward":
@@ -638,56 +641,54 @@ class Server():
 
 
             returndata = self.gamelogic.krit_move(clientdata.clientid,kritid)
-            return commandtype,returndata
+            return command,returndata
 
         elif commandtype == "krit_rotate_left":
             kritid =  command[1]
             returndata = self.gamelogic.krit_rotate_left(clientdata.clientid,kritid)
-            return commandtype,returndata
+            return command,returndata
 
         elif commandtype == "krit_rotate_right":
             kritid =  command[1]
             returndata = self.gamelogic.krit_rotate_right(clientdata.clientid,kritid)
-            return commandtype,returndata
+            return command,returndata
         
         elif commandtype == "krit_see":
             kritid =  command[1]
             returndata = self.gamelogic.krit_see(clientdata.clientid,kritid)
-            return commandtype,returndata
+            return command,returndata
 
         elif commandtype == "krit_mine":
             kritid =  command[1]
             returndata = self.gamelogic.krit_mine(clientdata.clientid,kritid)
-            return commandtype,returndata
+            return command,returndata
 
         elif commandtype == "krit_place":
             kritid =  command[1]
             blockdata = command[2]
             returndata = self.gamelogic.krit_place(clientdata.clientid,kritid,blockdata)
-            return commandtype,returndata
+            return command,returndata
 
         elif commandtype == "krit_drop":
             kritid =  command[1]
             blockdata = command[2]
             amount = command[3]
             returndata = self.gamelogic.krit_drop(clientdata.clientid,kritid,blockdata,amount)
-            return commandtype,returndata
+            return command,returndata
 
         #         ---------------SETTINGS---------------
         elif commandtype == "set_username":
             clientdata.username = command[1]
-            return commandtype,True
+            return command,True
 
         elif commandtype == "disconnect":
             if command[1] == clientdata.clientid:
                 self.disconnectids.append(clientdata.clientid)
-                return commandtype,True
-            return commandtype,False
+                return command,True
+            return command,False
 
         else:
-            return commandtype,"ERROR"
-
-        return "ERROR"
+            return command,"ERROR"
 
 
 
@@ -696,7 +697,7 @@ class Server():
 if __name__ == '__main__':
     render = "gui" in [a.lower() for a in sys.argv] 
  
-    serv = Server(63534,124,render) 
+    serv = Server(63533,1,render) 
 
 
     serv.mainloop()

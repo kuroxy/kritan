@@ -54,7 +54,7 @@ class Display():
         self.gamelogic = gamelogic
         self.server = server
         self.logs = []
-        self.loglevels = [[logging.CHAT,1],[logging.DEBUG,0],[logging.INFO,1],[logging.ERROR,1],[logging.OTHER,1]]
+        self.loglevels = [[logging.CHAT,1],[logging.DEBUG,1],[logging.INFO,1],[logging.ERROR,1],[logging.OTHER,1]]
         self.logtostr = {logging.CHAT:"CHAT",logging.DEBUG:"DEBUG",logging.INFO:"INFO",logging.ERROR:"ERROR",logging.OTHER:"OTHER"}
 
         self.camerasize = [35,26]
