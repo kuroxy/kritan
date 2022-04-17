@@ -178,6 +178,7 @@ class Gamelogic:
 
         stat = Station(playerid,pos)
         
+        
 
         for x in range(pos.x-2,pos.x+2+1):    # making a 5x5 space around station
             for y in range(pos.y-2,pos.y+2+1):
@@ -498,11 +499,8 @@ class Server():
                         # [<int>instructonid,<str>instructiontype, args]
                         command = cli.instruction                    
                         cli.instruction = []
-                        
-                        self.log(f"[SENDING] h1", logging.DEBUG )
+                    
                         repeatdata,returndata = self.processinstruction(cli,command)
-                        self.log(f"[SENDING] {repeatdata} {returndata}", logging.DEBUG )
-
 
                         cli.c.send(pickle.dumps([repeatdata,returndata]))
 
@@ -697,7 +695,7 @@ class Server():
 if __name__ == '__main__':
     render = "gui" in [a.lower() for a in sys.argv] 
  
-    serv = Server(63533,1,render) 
+    serv = Server(63533,random.randint(0,10**10),render) 
 
 
     serv.mainloop()
